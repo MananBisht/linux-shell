@@ -8,9 +8,18 @@
 int main(){
     char cmd[1024] = "\0" ;
     char* token ;
+    char s[100] ;
+
+    char p_dir[100] ;
+    getcwd(p_dir,sizeof(p_dir)) ;
+    getcwd(s,sizeof(s)) ;
 
     while(1){
-        printf("myshell> ") ;
+        if(strcmp(s,p_dir)==0)
+            printf("myshell> ") ;
+        else{
+            printf("myshell>-[%s] ",s) ;
+        }
 
         if(fgets(cmd,sizeof(cmd),stdin) == NULL)   break ;
         cmd[strcspn(cmd,"\n")] = '\0' ;
@@ -27,6 +36,19 @@ int main(){
             token = strtok(NULL, " ");
         }
         args[tokenc] = NULL ;
+
+        // implementing cd command
+
+        if(strcmp(args[0],"cd")==0){
+            if(args[1]!=NULL){
+                if(chdir(args[1])!= 0)
+                    perror("chdir error");
+            }else{
+                chdir(getenv("HOME")) ;
+            }
+            getcwd(s,sizeof(s)) ;
+            continue ;
+        }
 
         if(strcmp(cmd ,"exit")==0)   exit(1) ; 
 
