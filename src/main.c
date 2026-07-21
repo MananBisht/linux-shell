@@ -4,17 +4,20 @@
 #include<unistd.h>
 #include<sys/wait.h>
 #include<stdlib.h>
+#include<fcntl.h>
 
 int main(){
     char cmd[1024] = "\0" ;
     char* token ;
     char s[100] ;
-
     char p_dir[100] ;
+    
+
     getcwd(p_dir,sizeof(p_dir)) ;
     getcwd(s,sizeof(s)) ;
 
     while(1){
+        char* filename = NULL ;
         if(strcmp(s,p_dir)==0)
             printf("myshell> ") ;
         else{
@@ -25,6 +28,7 @@ int main(){
         cmd[strcspn(cmd,"\n")] = '\0' ;
 
         token = strtok(cmd," ") ;
+
         if(token == NULL)    continue ;
 
         int tokenc = 0 ;
@@ -36,6 +40,18 @@ int main(){
             token = strtok(NULL, " ");
         }
         args[tokenc] = NULL ;
+
+        tokenc = 0 ;
+
+
+        while(args[tokenc]){
+            if(strcmp(args[tokenc],">")==0){
+                args[tokenc] = NULL ;
+                filename = args[tokenc+1] ;
+                break ;
+            } 
+            tokenc ++ ;
+        }
 
         // implementing cd command
 
@@ -50,18 +66,41 @@ int main(){
             continue ;
         }
 
-        if(strcmp(cmd ,"exit")==0)   exit(1) ; 
+        if(strcmp(args[0] ,"exit")==0)   exit(1) ; 
+
 
         pid_t pid = fork() ;
 
         if(pid == 0){
+            // implementing basic file descriptor structure
+            if(filename!=NULL){
+                int fd = open(filename,O_CREAT | O_WRONLY | O_TRUNC, 0644);
+                
+                if(fd == -1){
+                    perror("file error");
+                    exit(1) ;
+                }
+                
+                if(dup2(fd,STDOUT_FILENO) == -1){
+                    perror("dup2 error");
+                    close(fd) ;
+                    exit(1) ;
+                }
+
+                close(fd) ;
+
+                if(execvp(args[0],args) == -1){
+                    perror("execvp error");
+                    exit(1) ;
+                }
+            }
             if(execvp(args[0],args) == -1 ){
                 perror("execvp fail") ;
                 exit(1);
             }
         }else if(pid < 0){
             perror("Fork failed") ;
-            exit(1) ;
+            _exit(EXIT_FAILURE);
         }
         else{
 	        int status ;	
