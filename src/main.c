@@ -6,6 +6,14 @@
 #include<stdlib.h>
 #include<fcntl.h>
 
+enum RedirectType
+{
+    NONE,
+    TRUNCATE,
+    APPEND
+};
+
+
 int main(){
     char cmd[1024] = "\0" ;
     char* token ;
@@ -42,12 +50,18 @@ int main(){
         args[tokenc] = NULL ;
 
         tokenc = 0 ;
-
+        enum RedirectType type = NONE ;
 
         while(args[tokenc]){
             if(strcmp(args[tokenc],">")==0){
                 args[tokenc] = NULL ;
                 filename = args[tokenc+1] ;
+                type = TRUNCATE ;
+                break ;
+            } else if(strcmp(args[tokenc],">>")==0){
+                args[tokenc] = NULL ;
+                filename = args[tokenc + 1] ;
+                type = APPEND ;
                 break ;
             } 
             tokenc ++ ;
@@ -72,9 +86,15 @@ int main(){
         pid_t pid = fork() ;
 
         if(pid == 0){
+
             // implementing basic file descriptor structure
+
             if(filename!=NULL){
-                int fd = open(filename,O_CREAT | O_WRONLY | O_TRUNC, 0644);
+		int fd ;
+                if(type == TRUNCATE)
+                    fd = open(filename,O_CREAT | O_WRONLY | O_TRUNC, 0644);
+                else if(type == APPEND)
+                    fd = open(filename,O_CREAT | O_WRONLY | O_APPEND, 0644);
                 
                 if(fd == -1){
                     perror("file error");
