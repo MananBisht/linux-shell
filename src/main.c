@@ -71,6 +71,7 @@ int main(){
     char s[100] ;
     char p_dir[100] ;
     
+    
 
     getcwd(p_dir,sizeof(p_dir)) ;
     getcwd(s,sizeof(s)) ;
@@ -80,7 +81,11 @@ int main(){
         redir.input_file = NULL ;
         redir.output_file = NULL ;
         redir.rdir_type = NONE ;
-        
+
+        // args split pointers for left and right of |
+        char **left ;
+        char **right ; 
+        bool is_pipe = false ;
 
         if(strcmp(s,p_dir)==0)
             printf("myshell> ") ;
@@ -135,9 +140,20 @@ int main(){
                 }
                 args[tokenc] = NULL ;
                 redir.input_file = args[tokenc+1] ;
+            }else if(strcmp(args[tokenc],"|") == 0){
+                if(args[tokenc+1] == NULL){
+                    printf("error :no file\n") ;
+                    error = 1 ;
+                    break ;
+                }
+                args[tokenc] = NULL ;
+                right = &args[tokenc +1] ;
+                left = args ;
+                is_pipe= true ;
             }
             tokenc ++ ;
         }
+
 
         if(error == 1 )     continue ;
 
@@ -154,20 +170,62 @@ int main(){
             continue ;
         }
 
-        if(strcmp(args[0] ,"exit")==0)   break ;; 
+        if(strcmp(args[0] ,"exit")==0)   break ;
 
+
+        if(is_pipe){
+            pid_t pid1 , pid2 ;
+            int fd[2] ;
+            if(pipe(fd)<0){
+                perror("pipe error") ;
+                continue ;
+            }
+
+            pid1 = fork() ;
+
+            if(pid1 == 0){
+                close(fd[0]);
+
+                dup2(fd[1],STDOUT_FILENO);
+                close(fd[1]) ;
+
+                if(execvp(left[0] ,left)==-1){
+                    perror("execvp fail") ;
+                    exit(1);
+                }
+            }else if(pid1 < 0){
+                perror("fork failed ");
+                _exit(EXIT_FAILURE);
+            }
+
+            pid2 = fork() ;
+
+            if(pid2 == 0){
+                close(fd[1]);
+
+                dup2(fd[0],STDIN_FILENO);
+                close(fd[0]) ;
+
+                if(execvp(right[0] ,right)==-1){
+                    perror("execvp fail") ;
+                    exit(1);
+                }
+            }else if(pid2 < 0){
+                perror("fork failed ");
+                _exit(EXIT_FAILURE);
+            }
+            close(fd[0]);
+            close(fd[1]);
+            waitpid(pid1,NULL,0);
+            waitpid(pid2,NULL,0) ;
+            continue ;
+        }
 
         pid_t pid = fork() ;
 
         if(pid == 0){
 
             // implementing file descriptor
-
-            // if (redirect_output(&redir) == -1)
-            //     _exit(EXIT_FAILURE); 
-            
-            // if (redirect_input(&redir) == -1)
-            //     _exit(EXIT_FAILURE); 
 
             redirect_output(&redir);
             redirect_input(&redir);
