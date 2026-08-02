@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "executor.h"
 #include "builtin.h"
+#include "wildcard.h"
 
 #include<stdio.h>
 #include<stdbool.h>
@@ -56,6 +57,20 @@ int main(){
             continue ;
         }
         
+        // wildcards
+        
+        int error = 0 ;
+        for(int i = 0 ; i < pipeline.command_count ; i++){
+            if(expand_wildcard(&pipeline.commands[i]) == -1 ){
+                error = 1 ;
+                break ;
+            }
+        }
+        if(error == 1){
+            free_tokens(tokens) ;
+            free_pipeline(&pipeline) ;
+            continue;
+        }
         // single and builtin command execution
         if(pipeline.command_count == 1 && is_builtin(&pipeline.commands[0])){
                 execute_builtin(&pipeline.commands[0]) ;

@@ -23,6 +23,22 @@ void init_pipeline(Pipeline *pipeline){
     pipeline->command_count = 0 ;
 }
 
+void free_command(Command *cmd){
+    for(int i = 0; cmd->args[i] != NULL ; i++){
+        free(cmd->args[i]);
+    }
+    free(cmd->input_file);
+    free(cmd->output_file) ;
+    init_command(cmd) ;
+}
+
+void free_pipeline(Pipeline *pipeline){
+    for(int i = 0; i< pipeline->command_count ; i++){
+        free_command(&pipeline->commands[i]);
+    }
+    pipeline->command_count = 0;
+}
+
 int parse_pipeline(Token tokens[], Pipeline *pipeline){
     init_pipeline(pipeline) ;
 
@@ -36,18 +52,37 @@ int parse_pipeline(Token tokens[], Pipeline *pipeline){
                 if (current_args >= MAX_ARGS - 1) { 
                     return -1;
                 }
-                pipeline->commands[command_count].args[current_args++] = tokens[current_token++].value ;
+                char * ch = strdup(tokens[current_token++].value) ;
+                if(ch == NULL){
+                    fprintf(stderr,"strdup error \n") ;
+                    free_pipeline(pipeline);
+                    return -1 ;
+                }
+
+                pipeline->commands[command_count].args[current_args++] = ch ;
                 break;
             case TOKEN_INPUT:
                 if(tokens[current_token + 1].type == TOKEN_WORD ){
-                    pipeline->commands[command_count].input_file = tokens[current_token+1].value ;
+                    char * ch = strdup(tokens[current_token+1].value) ;
+                    if(ch == NULL){
+                        free_pipeline(pipeline);
+                        fprintf(stderr,"strdup error \n") ;
+                        return -1 ;
+                    }
+                    pipeline->commands[command_count].input_file = ch ;
                     current_token += 2 ;
                 }else   
                     return -1 ;
                 break ;
             case TOKEN_OUTPUT :
                 if(tokens[current_token + 1].type == TOKEN_WORD ){
-                    pipeline->commands[command_count].output_file = tokens[current_token+1].value ;
+                    char * ch = strdup(tokens[current_token+1].value) ;
+                if(ch == NULL){
+                    free_pipeline(pipeline);
+                    fprintf(stderr,"strdup error \n") ;
+                    return -1 ;
+                }
+                    pipeline->commands[command_count].output_file = ch ;
                     pipeline->commands[command_count].rdir_type = TRUNCATE ;
                     current_token += 2 ;
                 }else
@@ -55,7 +90,13 @@ int parse_pipeline(Token tokens[], Pipeline *pipeline){
                 break ;
             case TOKEN_APPEND :
                 if(tokens[current_token + 1].type == TOKEN_WORD ){
-                    pipeline->commands[command_count].output_file = tokens[current_token+1].value ;
+                    char * ch = strdup(tokens[current_token+1].value) ;
+                if(ch == NULL){
+                    free_pipeline(pipeline);
+                    fprintf(stderr,"strdup error \n") ;
+                    return -1 ;
+                }
+                    pipeline->commands[command_count].output_file = ch;
                     pipeline->commands[command_count].rdir_type = APPEND ;
                     current_token += 2 ;
                 }else
@@ -70,9 +111,14 @@ int parse_pipeline(Token tokens[], Pipeline *pipeline){
                 command_count ++ ;
                 current_token ++ ;
                 break ;
+            case TOKEN_END :
+                break ;
         }
     }
-    if(command_count +1 > MAX_COMMANDS) return -1 ;
+    if(command_count +1 > MAX_COMMANDS){
+        free_pipeline(pipeline) ;
+        return -1 ;
+    }
     pipeline->commands[command_count].args[current_args] = NULL;
     pipeline->command_count = command_count + 1 ;
     if(tokens[0].type == TOKEN_END)

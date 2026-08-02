@@ -6,7 +6,7 @@
 
 bool contains_wildcard(const char *str) ;
 
-bool wildcard_match(const char *pattern, const char *filename) ;
+bool wildcard_match(const char *pattern, const char *filename,bool check) ;
 
 int expand_wildcard( Command *cmd);
 
